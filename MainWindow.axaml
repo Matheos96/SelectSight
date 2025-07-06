@@ -1,0 +1,115 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:selectSight="clr-namespace:SelectSight"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="SelectSight.MainWindow"
+        Title="SelectSight">
+
+    <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
+        <Grid Grid.Row="0" ColumnDefinitions="5*,1*">
+            <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="0,0,1,0" Background="Transparent">
+                <Grid RowDefinitions="Auto,*">
+                    <ListBox Grid.Row="1" 
+                             x:Name="AllFilesListBox" 
+                             Background="Transparent"
+                             SelectionMode="Multiple">
+
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <!-- <UniformGrid Columns="6" /> -->
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                            </Style>
+                        </ListBox.Styles>
+                        
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="selectSight:FileItem">
+                                <StackPanel HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            Background="Transparent"
+                                            PointerPressed="OnFileClicked">
+                                    <Image Source="{Binding Thumbnail}"
+                                           Width="200" Height="200"
+                                           Stretch="Uniform"
+                                           ClipToBounds="True"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}"
+                                               Foreground="Black"
+                                               TextAlignment="Center"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="200"
+                                               ToolTip.Tip="{Binding Name}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+            
+            <Border Grid.Column="1" Background="Transparent">
+                <ListBox x:Name="SelectedFilesListBox" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="selectSight:FileItem">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Foreground="Black" Text="{Binding Name}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="0,1,0,0" 
+                Background="Transparent" Padding="10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Select All"
+                        HorizontalContentAlignment="Left"
+                        Background="DeepSkyBlue"
+                        Click="SelectAllFiles"
+                        x:Name="SelectAllButton"
+                        Padding="15,8" Margin="0,0,10,0">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="LightSkyBlue"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+                <Button Content="Copy Selected"
+                        Background="YellowGreen"
+                        IsEnabled="False"
+                        Click="CopySelectedFiles"
+                        x:Name="CopyButton"
+                        Padding="15,8" Margin="0,0,10,0">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="LightGreen"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+                <Button Content="Clear Selected"
+                        Background="DarkRed"
+                        Click="ClearSelectedFiles"
+                        IsEnabled="False"
+                        x:Name="ClearButton"
+                        Padding="15,8">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Firebrick"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
