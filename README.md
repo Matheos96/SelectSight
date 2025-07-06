@@ -16,6 +16,15 @@ SelectSight is a cross-platform desktop application built with Avalonia UI and C
 * **Selection Persistence:** Remembers your selected files across application launches by saving their paths to a temporary user-specific directory.
 * **Cross-Platform:** Built with Avalonia UI, designed to run on Windows, macOS, and Linux.
 
+## Download the latest version
+
+You can download the latest compiled version of SelectSight from [Releases](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/releases/latest).
+### Direct Downloads:
+
+* 🪟 [Windows (x64)](https://github.com/Matheos96/SelectSight/releases/latest/download/SelectSight-Windows-x64.zip)
+* 🐧 [Linux (x64)](https://github.com/Matheos96/SelectSight/releases/latest/download/SelectSight-Linux-x64.tar.gz)
+
+
 ## Attributions
 
 "No photo" icon by [pocike](https://www.flaticon.com/authors/pocike) from [Flaticon](https://www.flaticon.com/).
