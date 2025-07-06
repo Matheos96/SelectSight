@@ -24,8 +24,8 @@ public class FileItem : INotifyPropertyChanged
     public FileItem(string fullPath)
     {
         FullPath = fullPath;
-        Name = Path.GetFileName(fullPath); // Get just the file name
-        SizeString = new FileInfo(fullPath).Length.ToString("N0") + " bytes"; // Format size
+        Name = Path.GetFileName(fullPath);
+        SizeString = new FileInfo(fullPath).Length.ToString("N0") + " bytes";
 
         // Start loading thumbnail asynchronously
         _ = LoadThumbnailAsync();
@@ -40,6 +40,7 @@ public class FileItem : INotifyPropertyChanged
             {
                 // Attempt to load image thumbnail
                 await using var stream = new FileStream(FullPath, FileMode.Open, FileAccess.Read);
+                
                 // Decode to a specific width for performance (e.g., 100 pixels)
                 Thumbnail = await Task.Run(() => Bitmap.DecodeToWidth(stream, 200));
                 return;
@@ -56,8 +57,8 @@ public class FileItem : INotifyPropertyChanged
     private static Bitmap? _defaultIcon;
     private static Bitmap GetDefaultIcon()
     {
-        if (_defaultIcon != null) return _defaultIcon;
-        // Load from Avalonia resource (ensure Assets/default_icon.png exists and is an AvaloniaResource)
+        if (_defaultIcon is not null) return _defaultIcon;
+        
         var uri = new Uri("avares://SelectSight/Assets/no-photo.png");
         _defaultIcon = new Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
         return _defaultIcon;

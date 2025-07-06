@@ -1,0 +1,90 @@
+name: Build and Publish Cross-Platform
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {} # Allows manual triggering of the workflow
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }} # Run jobs on different operating systems
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest] # Build for Windows and Ubuntu (Linux)
+        include:
+          - os: windows-latest
+            rid: win-x64
+            archive_name: SelectSight-Windows-x64.zip
+            publish_dir: publish/win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            archive_name: SelectSight-Linux-x64.tar.gz
+            publish_dir: publish/linux-x64
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build and Publish for ${{ matrix.rid }}
+        run: dotnet publish ./SelectSight.csproj --configuration Release --no-restore --runtime ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o ./publish/${{ matrix.rid }}
+
+
+      - name: Archive published output (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: Compress-Archive -Path ${{ matrix.publish_dir }}/* -DestinationPath ${{ matrix.archive_name }}
+
+      - name: Archive published output (Linux)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        shell: bash
+        run: tar -czvf ${{ matrix.archive_name }} -C ${{ matrix.publish_dir }} .
+
+      - name: Upload Archived Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: ./${{ matrix.archive_name }}
+          retention-days: 1
+
+  
+  release:
+    name: Create Release and Upload Assets
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release_assets
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2 # Action to create a GitHub Release
+        with:
+          tag_name: v${{ github.run_number }}-${{ github.run_id }} # Example: v123-456789
+          name: Release ${{ github.run_number }} (${{ github.run_id }})
+          body: Automated build for SelectSight
+          draft: true
+          files: |
+            ./release_assets/SelectSight-Windows-x64.zip/SelectSight-Windows-x64.zip
+            ./release_assets/SelectSight-Linux-x64.tar.gz/SelectSight-Linux-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
