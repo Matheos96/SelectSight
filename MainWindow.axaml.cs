@@ -119,12 +119,21 @@ public partial class MainWindow : Window
         try
         {
             var dataObject = new DataObject();
-            var filePaths = _selectedFiles.Select(f => f.FullPath).ToList();
-            
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            var filePaths = _selectedFiles.Select(f => f.FullPath);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var storageFiles = new List<IStorageFile>();
+                foreach (var filePath in filePaths)
+                {
+                    var storageFile = await topLevel.StorageProvider.TryGetFileFromPathAsync(filePath);
+                    if (storageFile is not null) storageFiles.Add(storageFile);
+                }
+                dataObject.Set(DataFormats.Files, storageFiles);
+            }
+            else
                 dataObject.Set("text/uri-list", string.Join(Environment.NewLine, filePaths.Select(f => new Uri(f).AbsoluteUri)));
-            else dataObject.Set(DataFormats.Files, filePaths);
-            
+
             await topLevel.Clipboard.SetDataObjectAsync(dataObject);
             Console.WriteLine($"Copied {_selectedFiles.Count} files to clipboard.");
         }
