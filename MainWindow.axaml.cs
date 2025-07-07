@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace SelectSight;
 
 using System;
@@ -62,7 +64,7 @@ public partial class MainWindow : Window
         SelectedFilesListBox.ItemsSource = _selectedFiles;
         
         InitializeFilePersistence();
-        UpdateButtonStates();
+        UpdateUiControlStates();
     }
     
     private void SetupDragAndDrop()
@@ -99,27 +101,40 @@ public partial class MainWindow : Window
             foreach (var oldSelection in oldSelections) 
                 if (_allFiles.TryGetValue(oldSelection, out var fileItem)) _selectedFiles.Add(fileItem);
         }
-        
+
         _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
         return;
         
         void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             File.WriteAllLines(selectedFilesFile, _selectedFiles.Select(f => f.FullPath));
+            
+            UpdateUiControlStates(); // Ensure UI reflects the current state of selected files
         }
     }
     
     private void ToggleFileSelection(FileItem fileItem)
     {
         if (!_selectedFiles.Remove(fileItem)) _selectedFiles.Add(fileItem);
-        UpdateButtonStates();
     }
     
-    private void UpdateButtonStates()
+    private void ShowFeedback(string message) => Task.Run(async () =>
+    {
+        Dispatcher.UIThread.Post(() => FeedbackText.Text = message);
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        Dispatcher.UIThread.Post(() => FeedbackText.Text = string.Empty);
+    });
+    
+    private void UpdateUiControlStates()
     {
         var hasSelections = _selectedFiles.Count > 0;
         CopyButton.IsEnabled = hasSelections;
         ClearButton.IsEnabled = hasSelections;
+
+        var sb = new StringBuilder($"{_allFiles.Count} files | ");
+        if (_selectedFiles.Count == 0) sb.Append("No files selected");
+        else sb.Append($"{_selectedFiles.Count} file{(_selectedFiles.Count == 1 ? string.Empty : "s")} selected");
+        SelectedFilesText.Text = sb.ToString();
     }
 
     private async Task<DataObject> CreateFilesDataObject(IEnumerable<string> filePaths)
@@ -223,7 +238,7 @@ public partial class MainWindow : Window
             var dataObject = await CreateFilesDataObject(filePaths);
   
             await topLevel.Clipboard.SetDataObjectAsync(dataObject);
-            Console.WriteLine($"Copied {_selectedFiles.Count} files to clipboard.");
+            ShowFeedback($"{_selectedFiles.Count} {(_selectedFiles.Count == 1 ? "file was" : "files were")} copied to the clipboard");
         }
         catch (Exception ex)
         {
@@ -243,12 +258,11 @@ public partial class MainWindow : Window
         }
         
         foreach (var fileItem in _allFiles) _selectedFiles.Add(fileItem);
-        UpdateButtonStates();
     }
     
     private async void ClearSelectedFiles(object? sender, RoutedEventArgs e)
     {
-        if (_selectedFiles.Count < 1) return;
+        if (_selectedFiles.Count == 0) return;
         var box = MessageBoxManager
             .GetMessageBoxStandard("Confirm Clear", "Are you sure you want to clear the selected files?",
                 ButtonEnum.YesNo);
@@ -256,7 +270,7 @@ public partial class MainWindow : Window
         if (await box.ShowAsync() != ButtonResult.Yes) return;
         
         _selectedFiles.Clear();
-        UpdateButtonStates();
+        ShowFeedback("Cleared all selected files");
     }
 
     #endregion
