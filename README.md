@@ -26,5 +26,5 @@ You can download the latest compiled version of SelectSight from [Releases](http
 
 
 ## Attributions
-
-"No photo" icon by [pocike](https://www.flaticon.com/authors/pocike) from [Flaticon](https://www.flaticon.com/).
+- App icon by [anggara](https://www.flaticon.com/authors/anggara) from [flaticon.com](https://www.flaticon.com/).
+- "No photo" icon by [pocike](https://www.flaticon.com/authors/pocike) from [flaticon.com](https://www.flaticon.com/).

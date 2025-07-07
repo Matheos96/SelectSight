@@ -8,6 +8,7 @@
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <RootNamespace>SelectSight</RootNamespace>
+        <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,11 +26,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Assets\" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="Assets\no-photo.png" />
-      <AvaloniaResource Include="Assets\no-photo.png" />
+      <None Remove="Assets\icon.ico" />
+      <AvaloniaResource Include="Assets\icon.ico" />
     </ItemGroup>
 </Project>

@@ -5,7 +5,8 @@
         xmlns:selectSight="clr-namespace:SelectSight"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="SelectSight.MainWindow"
-        Title="SelectSight">
+        Title="SelectSight"
+        Icon="avares://SelectSight/Assets/icon.ico">
 
     <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
         <Grid Grid.Row="0" ColumnDefinitions="5*,1*">
