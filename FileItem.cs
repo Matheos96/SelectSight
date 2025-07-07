@@ -42,7 +42,7 @@ public class FileItem : INotifyPropertyChanged
                 await using var stream = new FileStream(FullPath, FileMode.Open, FileAccess.Read);
                 
                 // Decode to a specific width for performance (e.g., 100 pixels)
-                Thumbnail = await Task.Run(() => Bitmap.DecodeToWidth(stream, 200));
+                Thumbnail = await Task.Run(() => Bitmap.DecodeToWidth(stream, 300));
                 return;
             }
         }

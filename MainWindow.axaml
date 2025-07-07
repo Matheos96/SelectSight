@@ -5,7 +5,8 @@
         xmlns:selectSight="clr-namespace:SelectSight"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="SelectSight.MainWindow"
-        Title="SelectSight">
+        Title="SelectSight"
+        Icon="avares://SelectSight/Assets/icon.ico">
 
     <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
         <Grid Grid.Row="0" ColumnDefinitions="5*,1*">
@@ -18,7 +19,6 @@
 
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <!-- <UniformGrid Columns="6" /> -->
                                 <WrapPanel Orientation="Horizontal" />
                             </ItemsPanelTemplate>
                         </ListBox.ItemsPanel>
@@ -34,10 +34,9 @@
                             <DataTemplate x:DataType="selectSight:FileItem">
                                 <StackPanel HorizontalAlignment="Stretch"
                                             VerticalAlignment="Stretch"
-                                            Background="Transparent"
-                                            PointerPressed="OnFileClicked">
+                                            Background="Transparent">
                                     <Image Source="{Binding Thumbnail}"
-                                           Width="200" Height="200"
+                                           Width="300" Height="300"
                                            Stretch="Uniform"
                                            ClipToBounds="True"
                                            VerticalAlignment="Center"
@@ -47,7 +46,7 @@
                                                TextAlignment="Center"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxWidth="200"
+                                               MaxWidth="300"
                                                ToolTip.Tip="{Binding Name}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -72,44 +71,51 @@
 
         <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="0,1,0,0" 
                 Background="Transparent" Padding="10">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Select All"
-                        HorizontalContentAlignment="Left"
-                        Background="DeepSkyBlue"
-                        Click="SelectAllFiles"
-                        x:Name="SelectAllButton"
-                        Padding="15,8" Margin="0,0,10,0">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="LightSkyBlue"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
-                <Button Content="Copy Selected"
-                        Background="YellowGreen"
-                        IsEnabled="False"
-                        Click="CopySelectedFiles"
-                        x:Name="CopyButton"
-                        Padding="15,8" Margin="0,0,10,0">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="LightGreen"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
-                <Button Content="Clear Selected"
-                        Background="DarkRed"
-                        Click="ClearSelectedFiles"
-                        IsEnabled="False"
-                        x:Name="ClearButton"
-                        Padding="15,8">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="Firebrick"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
-            </StackPanel>
+            <Grid ColumnDefinitions="*,*">
+                <Grid Grid.Column="0" ColumnDefinitions="Auto,*" HorizontalAlignment="Stretch">
+                    <TextBlock Grid.Column="0" x:Name="SelectedFilesText" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" x:Name="FeedbackText" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Select All"
+                            HorizontalContentAlignment="Left"
+                            Background="DeepSkyBlue"
+                            Click="SelectAllFiles"
+                            x:Name="SelectAllButton"
+                            Padding="15,8" Margin="0,0,10,0">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                <Setter Property="Background" Value="LightSkyBlue"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                    <Button Content="Copy Selected"
+                            Background="YellowGreen"
+                            IsEnabled="False"
+                            Click="CopySelectedFiles"
+                            x:Name="CopyButton"
+                            Padding="15,8" Margin="0,0,10,0">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                <Setter Property="Background" Value="LightGreen"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                    <Button Content="Clear Selected"
+                            Background="DarkRed"
+                            Click="ClearSelectedFiles"
+                            IsEnabled="False"
+                            x:Name="ClearButton"
+                            Padding="15,8">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                <Setter Property="Background" Value="Firebrick"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>
