@@ -35,7 +35,7 @@
                                             VerticalAlignment="Stretch"
                                             Background="Transparent">
                                     <Image Source="{Binding Thumbnail}"
-                                           Width="200" Height="200"
+                                           Width="300" Height="300"
                                            Stretch="Uniform"
                                            ClipToBounds="True"
                                            VerticalAlignment="Center"
@@ -45,7 +45,7 @@
                                                TextAlignment="Center"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxWidth="200"
+                                               MaxWidth="300"
                                                ToolTip.Tip="{Binding Name}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
