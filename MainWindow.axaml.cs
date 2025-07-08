@@ -50,7 +50,7 @@ public partial class MainWindow : Window
                 Title = "Select a folder",
                 AllowMultiple = false
             });
-            if (folders.Any()) LoadFilesFromDirectory(folders[0].Path.LocalPath);
+            if (folders.Any()) await LoadFilesFromDirectory(folders[0].Path.LocalPath);
             else Dispatcher.UIThread.Post(() =>
             {
                 if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -74,7 +74,7 @@ public partial class MainWindow : Window
         AllFilesListBox.AddHandler(PointerReleasedEvent, SelectedFilesListBox_PointerReleased, RoutingStrategies.Tunnel);
     }
 
-    private void LoadFilesFromDirectory(string directoryPath)
+    private async Task LoadFilesFromDirectory(string directoryPath)
     {
         if (!Directory.Exists(directoryPath))
         {
@@ -83,6 +83,8 @@ public partial class MainWindow : Window
         }
 
         var files = Directory.GetFiles(directoryPath);
+        ShowFeedback("Loading files. Thumbnails may take a moment to appear...");
+        await Task.Delay(5); // Allow UI to update before loading thumbnails
         _allFiles = files.Select(p => new FileItem(p)).ToHashSet();
     }
     
