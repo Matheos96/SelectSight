@@ -36,7 +36,7 @@ public class FileItem : INotifyPropertyChanged
         try
         {
             var extension = Path.GetExtension(FullPath).ToLowerInvariant();
-            if (extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp")
+            if (extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".tiff" or ".tif" or ".ico" or ".nef")
             {
                 // Attempt to load image thumbnail
                 await using var stream = new FileStream(FullPath, FileMode.Open, FileAccess.Read);
