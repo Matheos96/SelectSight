@@ -1,3 +1,8 @@
+using System.Linq;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+using SkiaSharp;
+
 namespace SelectSight;
 
 using System;
@@ -29,10 +34,7 @@ public class FileItem(string fullPath) : INotifyPropertyChanged
             {
                 // Attempt to load image thumbnail
                 await using var stream = new FileStream(FullPath, FileMode.Open, FileAccess.Read);
-                
-                // Decode to a specific width for performance (e.g., 100 pixels)
-                Thumbnail = await Task.Run(() => Bitmap.DecodeToWidth(stream, 300));
-                return;
+                Thumbnail = await ThumbnailUtils.GenerateBitmap(stream);
             }
         }
         catch (Exception ex)
@@ -42,7 +44,7 @@ public class FileItem(string fullPath) : INotifyPropertyChanged
 
         Thumbnail ??= GetDefaultIcon();
     }
-
+    
     private static Bitmap? _defaultIcon;
     private static Bitmap GetDefaultIcon()
     {
