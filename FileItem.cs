@@ -1,3 +1,8 @@
+using System.Linq;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+using SkiaSharp;
+
 namespace SelectSight;
 
 using System;
@@ -8,12 +13,11 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 
-public class FileItem : INotifyPropertyChanged
+public class FileItem(string fullPath) : INotifyPropertyChanged
 {
-    public string FullPath { get; }
-    public string Name { get; }
-    public string SizeString { get; }
-    
+    public string FullPath { get; } = fullPath;
+    public string Name { get; } = Path.GetFileName(fullPath);
+
     private Bitmap? _thumbnail;
     public Bitmap? Thumbnail
     {
@@ -21,17 +25,7 @@ public class FileItem : INotifyPropertyChanged
         private set => SetField(ref _thumbnail, value);
     }
 
-    public FileItem(string fullPath)
-    {
-        FullPath = fullPath;
-        Name = Path.GetFileName(fullPath);
-        SizeString = new FileInfo(fullPath).Length.ToString("N0") + " bytes";
-
-        // Start loading thumbnail asynchronously
-        _ = LoadThumbnailAsync();
-    }
-
-    private async Task LoadThumbnailAsync()
+    public async Task LoadThumbnailAsync()
     {
         try
         {
@@ -40,10 +34,7 @@ public class FileItem : INotifyPropertyChanged
             {
                 // Attempt to load image thumbnail
                 await using var stream = new FileStream(FullPath, FileMode.Open, FileAccess.Read);
-                
-                // Decode to a specific width for performance (e.g., 100 pixels)
-                Thumbnail = await Task.Run(() => Bitmap.DecodeToWidth(stream, 300));
-                return;
+                Thumbnail = await ThumbnailUtils.GenerateBitmap(stream);
             }
         }
         catch (Exception ex)
@@ -53,7 +44,7 @@ public class FileItem : INotifyPropertyChanged
 
         Thumbnail ??= GetDefaultIcon();
     }
-
+    
     private static Bitmap? _defaultIcon;
     private static Bitmap GetDefaultIcon()
     {
