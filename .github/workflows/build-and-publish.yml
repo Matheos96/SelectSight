@@ -25,6 +25,8 @@ jobs:
             rid: linux-x64
             archive_name: SelectSight-Linux-x64.tar.gz
             publish_dir: publish/linux-x64
+    outputs:
+      app_version: ${{ steps.generate_version.outputs.generated_version }}
 
     steps:
       - name: Checkout Repository
@@ -38,8 +40,16 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
+      - name: Generate Version Number
+        id: generate_version
+        shell: bash
+        run: |
+          VERSION_NUMBER="${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ github.run_number }}"
+          echo "Generated version: $VERSION_NUMBER"
+          echo "generated_version=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
+
       - name: Build and Publish for ${{ matrix.rid }}
-        run: dotnet publish ./SelectSight.csproj --configuration Release --no-restore --runtime ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o ./publish/${{ matrix.rid }}
+        run: dotnet publish ./SelectSight.csproj --configuration Release --no-restore --runtime ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o ./publish/${{ matrix.rid }} -p:Version=${{ steps.generate_version.outputs.generated_version }}
 
 
       - name: Archive published output (Windows)
@@ -76,12 +86,13 @@ jobs:
           path: ./release_assets
 
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v2 # Action to create a GitHub Release
         with:
-          tag_name: v${{ github.run_number }}-${{ github.run_id }} # Example: v123-456789
-          name: Release ${{ github.run_number }} (${{ github.run_id }})
-          body: Automated build for SelectSight
+          tag_name: v${{ needs.build.outputs.app_version }}
+          name: Release v${{ needs.build.outputs.app_version }}
+          body: |
+            Automated build for SelectSight
+            Version: ${{ needs.build.outputs.app_version }}
           draft: true
           files: |
             ./release_assets/SelectSight-Windows-x64.zip/SelectSight-Windows-x64.zip
