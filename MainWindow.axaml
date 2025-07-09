@@ -9,12 +9,13 @@
         Icon="avares://SelectSight/Assets/icon.ico">
 
     <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
-        <Grid Grid.Row="0" ColumnDefinitions="5*,1*">
+        <Grid Grid.Row="0" ColumnDefinitions="8*,1*">
             <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="0,0,1,0" Background="Transparent">
                 <Grid RowDefinitions="Auto,*">
                     <ListBox Grid.Row="1" 
                              x:Name="AllFilesListBox" 
                              Background="Transparent"
+                             AutoScrollToSelectedItem="False"
                              SelectionMode="Multiple">
 
                         <ListBox.ItemsPanel>
@@ -73,7 +74,7 @@
                 Background="Transparent" Padding="10">
             <Grid ColumnDefinitions="*,*">
                 <Grid Grid.Column="0" ColumnDefinitions="Auto,*" HorizontalAlignment="Stretch">
-                    <TextBlock Grid.Column="0" x:Name="SelectedFilesText" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" x:Name="FilesInfoText" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" x:Name="FeedbackText" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                 </Grid>
                 <StackPanel Grid.Column="1"
@@ -81,7 +82,7 @@
                     <Button Content="Select All"
                             HorizontalContentAlignment="Left"
                             Background="DeepSkyBlue"
-                            Click="SelectAllFiles"
+                            Click="SelectAllBtnClick"
                             x:Name="SelectAllButton"
                             Padding="15,8" Margin="0,0,10,0">
                         <Button.Styles>
@@ -93,7 +94,7 @@
                     <Button Content="Copy Selected"
                             Background="YellowGreen"
                             IsEnabled="False"
-                            Click="CopySelectedFiles"
+                            Click="CopySelectedBtnClick"
                             x:Name="CopyButton"
                             Padding="15,8" Margin="0,0,10,0">
                         <Button.Styles>
@@ -104,7 +105,7 @@
                     </Button>
                     <Button Content="Clear Selected"
                             Background="DarkRed"
-                            Click="ClearSelectedFiles"
+                            Click="ClearSelectedBtnClick"
                             IsEnabled="False"
                             x:Name="ClearButton"
                             Padding="15,8">

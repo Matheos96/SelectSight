@@ -23,7 +23,7 @@ using MsBox.Avalonia.Enums;
 
 public partial class MainWindow : Window
 {
-    private HashSet<FileItem> _allFiles = [];
+    private readonly ObservableCollection<FileItem> _allFiles = [];
     private readonly ObservableCollection<FileItem> _selectedFiles = [];
     
     private Point _dragStartPosition;
@@ -34,136 +34,150 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Activated += OnActivated;
-        SetupDragAndDrop();
-    }
-    
-    private async void OnActivated(object? sender, EventArgs e)
-    {
-        Activated -= OnActivated;
         
+        AllFilesListBox.ItemsSource = _allFiles;
+        SelectedFilesListBox.ItemsSource = _selectedFiles;
+        AllFilesListBox.SelectedItems = _selectedFiles;
+        
+        _ = Initialize(); // Start the initialization process asynchronously
+    }
+
+    private async Task Initialize()
+    {
         var topLevel = GetTopLevel(this);
-        if (topLevel is not null)
+        if (topLevel is null)
         {
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "Select a folder",
-                AllowMultiple = false
-            });
-            if (folders.Any()) await LoadFilesFromDirectory(folders[0].Path.LocalPath);
-            else Dispatcher.UIThread.Post(() =>
+            // Handle shutdown if no top-level window -- Should not happen in normal use
+            Dispatcher.UIThread.Post(() =>
             {
                 if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                     desktop.Shutdown();
             });
+            return;
         }
         
-        AllFilesListBox.ItemsSource = _allFiles;
-        AllFilesListBox.SelectedItems = _selectedFiles;
-        
-        SelectedFilesListBox.ItemsSource = _selectedFiles;
-        
-        InitializeFilePersistence();
-        UpdateUiControlStates();
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select a folder",
+            AllowMultiple = false
+        });
+
+        SetupDragAndDrop();
+
+        await Task.Run(async () =>
+        {
+            if (folders.Count > 0)
+            {
+                var directoryPath = folders[0].Path.LocalPath;
+                if (!Directory.Exists(directoryPath))
+                {
+                    Console.WriteLine($"Directory not found: {directoryPath}");
+                    return;
+                }
+                
+                const string selectSightTempFolder = "SelectSightData";
+                const string selectSightSelectedFilesFile = "SelectedFiles.ss";
+                
+                var selectSightTemp = Path.Combine(Path.GetTempPath(), selectSightTempFolder);
+                if (!Directory.Exists(selectSightTemp)) Directory.CreateDirectory(selectSightTemp);
+                var selectedFilesFile = Path.Combine(selectSightTemp, selectSightSelectedFilesFile);
+            
+                var oldSelections = File.Exists(selectedFilesFile)
+                    ? (await File.ReadAllLinesAsync(selectedFilesFile)).ToHashSet()
+                    : [];
+            
+                _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
+                _allFiles.CollectionChanged += AllFilesOnCollectionChanged;
+                
+                var directoryInfo = new DirectoryInfo(directoryPath);
+                var files = directoryInfo.GetFiles().OrderBy(p => p.CreationTime).ToArray();
+                var totalFiles = files.Length;
+                var currentFileIndex = 0;
+                foreach (var fileInfo in files)
+                {
+                    var filePath = fileInfo.FullName;
+                    var fileItem = new FileItem(filePath);
+                    _allFiles.Add(fileItem);
+                    
+                    // If the file was previously selected, add it to the selected files
+                    // (Queue on UI Thread to avoid issues with collection modification due to modification above that also affects AllFilesListBox)
+                    if (oldSelections.Contains(filePath)) Dispatcher.UIThread.Post(() => _selectedFiles.Add(fileItem)); 
+                    
+                    await fileItem.LoadThumbnailAsync();
+                    currentFileIndex++;
+                    ShowFeedback($"Loading files and creating thumbnails {currentFileIndex/(float)totalFiles:P} ({currentFileIndex}/{totalFiles})", -1, false);
+                }
+                ShowFeedback("Files loaded successfully", 4, false);
+                return;
+                
+                void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+                {
+                    File.WriteAllLines(selectedFilesFile, _selectedFiles.Select(f => f.FullPath));
+                    RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
+                }
+                void AllFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilesInfoText();
+            }
+            
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                    desktop.Shutdown();
+            });
+        });
     }
     
     private void SetupDragAndDrop()
     {
-        AllFilesListBox.AddHandler(PointerPressedEvent, OnListBoxClick, RoutingStrategies.Tunnel);
-        AllFilesListBox.AddHandler(PointerMovedEvent, OnListBoxPointerMoved, RoutingStrategies.Tunnel);
-        AllFilesListBox.AddHandler(PointerReleasedEvent, SelectedFilesListBox_PointerReleased, RoutingStrategies.Tunnel);
+        AllFilesListBox.AddHandler(PointerPressedEvent, OnAllFilesListBoxClick, RoutingStrategies.Tunnel);
+        AllFilesListBox.AddHandler(PointerMovedEvent, OnAllFilesListBoxPointerMoved, RoutingStrategies.Tunnel);
+        AllFilesListBox.AddHandler(PointerReleasedEvent, OnAllFilesListBoxPointerReleased, RoutingStrategies.Tunnel);
     }
 
-    private async Task LoadFilesFromDirectory(string directoryPath)
-    {
-        if (!Directory.Exists(directoryPath))
-        {
-            Console.WriteLine($"Directory not found: {directoryPath}");
-            return;
-        }
+    #region Refreshing UI
 
-        var files = Directory.GetFiles(directoryPath);
-        ShowFeedback("Loading files. Thumbnails may take a moment to appear...");
-        await Task.Delay(5); // Allow UI to update before loading thumbnails
-        _allFiles = files.Select(p => new FileItem(p)).ToHashSet();
-    }
-    
-    private void InitializeFilePersistence()
-    {
-        const string selectSightTempFolder = "SelectSightData";
-        const string selectSightSelectedFilesFile = "SelectedFiles.ss";
-        
-        var selectSightTemp = Path.Combine(Path.GetTempPath(), selectSightTempFolder);
-        if (!Directory.Exists(selectSightTemp)) Directory.CreateDirectory(selectSightTemp);
-        var selectedFilesFile = Path.Combine(selectSightTemp, selectSightSelectedFilesFile);
-
-        if (File.Exists(selectedFilesFile))
-        {
-            var oldSelections = File.ReadAllLines(selectedFilesFile).Select(p => new FileItem(p)).ToHashSet();
-            foreach (var oldSelection in oldSelections) 
-                if (_allFiles.TryGetValue(oldSelection, out var fileItem)) _selectedFiles.Add(fileItem);
-        }
-
-        _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
-        return;
-        
-        void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            File.WriteAllLines(selectedFilesFile, _selectedFiles.Select(f => f.FullPath));
-            
-            UpdateUiControlStates(); // Ensure UI reflects the current state of selected files
-        }
-    }
-    
     private void ToggleFileSelection(FileItem fileItem)
     {
         if (!_selectedFiles.Remove(fileItem)) _selectedFiles.Add(fileItem);
     }
     
-    private void ShowFeedback(string message) => Task.Run(async () =>
+    private void ShowFeedback(string message, long durationSeconds = -1, bool resetTextAfterTimeout = true) => Task.Run(async () =>
     {
-        Dispatcher.UIThread.Post(() => FeedbackText.Text = message);
-        await Task.Delay(TimeSpan.FromSeconds(3));
-        Dispatcher.UIThread.Post(() => FeedbackText.Text = string.Empty);
+        var currentMessage = string.Empty;
+        Dispatcher.UIThread.Post(() =>
+        {
+            currentMessage = FeedbackText.Text;
+            FeedbackText.Text = message;
+        });
+        if (durationSeconds <= 0) return; // Don't reset feedback if duration is 0 or negative
+        
+        await Task.Delay(TimeSpan.FromSeconds(durationSeconds));
+        
+        Dispatcher.UIThread.Post(() => FeedbackText.Text = resetTextAfterTimeout ? currentMessage : string.Empty);
     });
     
-    private void UpdateUiControlStates()
+    private void RefreshUiButtonStates() => Dispatcher.UIThread.Post(() =>
     {
         var hasSelections = _selectedFiles.Count > 0;
         CopyButton.IsEnabled = hasSelections;
         ClearButton.IsEnabled = hasSelections;
-
+    });
+    
+    private void RefreshFilesInfoText()
+    {
         var sb = new StringBuilder($"{_allFiles.Count} files | ");
         if (_selectedFiles.Count == 0) sb.Append("No files selected");
         else sb.Append($"{_selectedFiles.Count} file{(_selectedFiles.Count == 1 ? string.Empty : "s")} selected");
-        SelectedFilesText.Text = sb.ToString();
+        var newText = sb.ToString();
+        Dispatcher.UIThread.Post(() => FilesInfoText.Text = newText);
     }
 
-    private async Task<DataObject> CreateFilesDataObject(IEnumerable<string> filePaths)
-    {
-        var data = new DataObject();
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var topLevel = GetTopLevel(this);
-            if (topLevel == null) return data;
-            var storageFiles = new List<IStorageFile>();
-            foreach (var filePath in filePaths)
-            {
-                var storageFile = await topLevel.StorageProvider.TryGetFileFromPathAsync(filePath);
-                if (storageFile is not null) storageFiles.Add(storageFile);
-            }
-            data.Set(DataFormats.Files, storageFiles);
-        }
-        else
-            data.Set("text/uri-list", string.Join(Environment.NewLine, filePaths.Select(f => new Uri(f).AbsoluteUri)));
-
-        return data;
-    }
-
-    #region Eventhandlers
+    #endregion
     
-    private void SelectedFilesListBox_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    #region Eventhandlers
+
+    #region AllFile
+
+    private void OnAllFilesListBoxPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         // Release pointer capture if we were still holding it
         if (ReferenceEquals(e.Pointer.Captured, _pressedListBoxItem)) e.Pointer.Capture(null);
@@ -177,7 +191,7 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private async void OnListBoxPointerMoved(object? sender, PointerEventArgs e)
+    private async void OnAllFilesListBoxPointerMoved(object? sender, PointerEventArgs e)
     {
         if (_pressedListBoxItem == null || !ReferenceEquals(e.Pointer.Captured, _pressedListBoxItem)) return;
         
@@ -211,7 +225,7 @@ public partial class MainWindow : Window
         _pressedListBoxItem = null;
     }
 
-    private void OnListBoxClick(object? sender, PointerPressedEventArgs e)
+    private void OnAllFilesListBoxClick(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         _dragStartPosition = e.GetPosition(this);
@@ -222,7 +236,11 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private async void CopySelectedFiles(object? sender, RoutedEventArgs e)
+    #endregion
+
+    #region Buttons
+
+    private async void CopySelectedBtnClick(object? sender, RoutedEventArgs e)
     {
         if (_selectedFiles.Count == 0) return;
 
@@ -240,7 +258,7 @@ public partial class MainWindow : Window
             var dataObject = await CreateFilesDataObject(filePaths);
   
             await topLevel.Clipboard.SetDataObjectAsync(dataObject);
-            ShowFeedback($"{_selectedFiles.Count} {(_selectedFiles.Count == 1 ? "file was" : "files were")} copied to the clipboard");
+            ShowFeedback($"{_selectedFiles.Count} {(_selectedFiles.Count == 1 ? "file was" : "files were")} copied to the clipboard", 3);
         }
         catch (Exception ex)
         {
@@ -248,7 +266,7 @@ public partial class MainWindow : Window
         }
     }
     
-    private async void SelectAllFiles(object? sender, RoutedEventArgs e)
+    private async void SelectAllBtnClick(object? sender, RoutedEventArgs e)
     {
         if (_selectedFiles.Count > 0)
         {
@@ -262,7 +280,7 @@ public partial class MainWindow : Window
         foreach (var fileItem in _allFiles) _selectedFiles.Add(fileItem);
     }
     
-    private async void ClearSelectedFiles(object? sender, RoutedEventArgs e)
+    private async void ClearSelectedBtnClick(object? sender, RoutedEventArgs e)
     {
         if (_selectedFiles.Count == 0) return;
         var box = MessageBoxManager
@@ -272,8 +290,32 @@ public partial class MainWindow : Window
         if (await box.ShowAsync() != ButtonResult.Yes) return;
         
         _selectedFiles.Clear();
-        ShowFeedback("Cleared all selected files");
+        ShowFeedback("Cleared all selected files", 3);
     }
 
     #endregion
+
+    #endregion
+    
+    private async Task<DataObject> CreateFilesDataObject(IEnumerable<string> filePaths)
+    {
+        var data = new DataObject();
+        
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var topLevel = GetTopLevel(this);
+            if (topLevel == null) return data;
+            var storageFiles = new List<IStorageFile>();
+            foreach (var filePath in filePaths)
+            {
+                var storageFile = await topLevel.StorageProvider.TryGetFileFromPathAsync(filePath);
+                if (storageFile is not null) storageFiles.Add(storageFile);
+            }
+            data.Set(DataFormats.Files, storageFiles);
+        }
+        else
+            data.Set("text/uri-list", string.Join(Environment.NewLine, filePaths.Select(f => new Uri(f).AbsoluteUri)));
+
+        return data;
+    }
 }

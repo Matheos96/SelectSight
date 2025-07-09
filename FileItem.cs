@@ -8,12 +8,11 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 
-public class FileItem : INotifyPropertyChanged
+public class FileItem(string fullPath) : INotifyPropertyChanged
 {
-    public string FullPath { get; }
-    public string Name { get; }
-    public string SizeString { get; }
-    
+    public string FullPath { get; } = fullPath;
+    public string Name { get; } = Path.GetFileName(fullPath);
+
     private Bitmap? _thumbnail;
     public Bitmap? Thumbnail
     {
@@ -21,17 +20,7 @@ public class FileItem : INotifyPropertyChanged
         private set => SetField(ref _thumbnail, value);
     }
 
-    public FileItem(string fullPath)
-    {
-        FullPath = fullPath;
-        Name = Path.GetFileName(fullPath);
-        SizeString = new FileInfo(fullPath).Length.ToString("N0") + " bytes";
-
-        // Start loading thumbnail asynchronously
-        _ = LoadThumbnailAsync();
-    }
-
-    private async Task LoadThumbnailAsync()
+    public async Task LoadThumbnailAsync()
     {
         try
         {
