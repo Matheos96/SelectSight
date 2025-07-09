@@ -19,11 +19,9 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            archive_name: SelectSight-Windows-x64.zip
             publish_dir: publish/win-x64
           - os: ubuntu-latest
             rid: linux-x64
-            archive_name: SelectSight-Linux-x64.tar.gz
             publish_dir: publish/linux-x64
     outputs:
       app_version: ${{ steps.generate_version.outputs.generated_version }}
@@ -55,18 +53,24 @@ jobs:
       - name: Archive published output (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: pwsh
-        run: Compress-Archive -Path ${{ matrix.publish_dir }}/* -DestinationPath ${{ matrix.archive_name }}
+        run: |
+          $ArchiveName = "SelectSight-Windows-x64-${{ steps.generate_version.outputs.generated_version }}.zip"
+          Compress-Archive -Path ${{ matrix.publish_dir }}/* -DestinationPath $ArchiveName
+          echo "archive_name=$ArchiveName" >> $env:GITHUB_ENV
 
       - name: Archive published output (Linux)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: tar -czvf ${{ matrix.archive_name }} -C ${{ matrix.publish_dir }} .
+        run: |
+          ARCHIVE_NAME="SelectSight-Linux-x64-${{ steps.generate_version.outputs.generated_version }}.tar.gz"
+          tar -czvf "$ARCHIVE_NAME" -C ${{ matrix.publish_dir }} .
+          echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_ENV"
 
       - name: Upload Archived Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive_name }}
-          path: ./${{ matrix.archive_name }}
+          name: ${{ env.archive_name }}
+          path: ./${{ env.archive_name }}
           retention-days: 1
 
   
@@ -95,7 +99,7 @@ jobs:
             Version: ${{ needs.build.outputs.app_version }}
           draft: true
           files: |
-            ./release_assets/SelectSight-Windows-x64.zip/SelectSight-Windows-x64.zip
-            ./release_assets/SelectSight-Linux-x64.tar.gz/SelectSight-Linux-x64.tar.gz
+            ./release_assets/SelectSight-Windows-x64-${{ needs.build.outputs.app_version }}.zip/SelectSight-Windows-x64-${{ needs.build.outputs.app_version }}.zip
+            ./release_assets/SelectSight-Linux-x64-${{ needs.build.outputs.app_version }}.tar.gz/SelectSight-Linux-x64-${{ needs.build.outputs.app_version }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
