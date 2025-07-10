@@ -18,12 +18,7 @@ SelectSight is a cross-platform desktop application built with Avalonia UI and C
 
 ## Download the latest version
 
-You can download the latest compiled version of SelectSight from [Releases](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/releases/latest).
-### Direct Downloads:
-
-* 🪟 [Windows (x64)](https://github.com/Matheos96/SelectSight/releases/latest/download/SelectSight-Windows-x64.zip)
-* 🐧 [Linux (x64)](https://github.com/Matheos96/SelectSight/releases/latest/download/SelectSight-Linux-x64.tar.gz)
-
+You can download the latest compiled version of SelectSight from [Releases page](https://github.com/Matheos96/SelectSight/releases/latest).
 
 ## Attributions
 - App icon by [anggara](https://www.flaticon.com/authors/anggara) from [flaticon.com](https://www.flaticon.com/).
