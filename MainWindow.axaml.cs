@@ -34,12 +34,22 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        InitConditionalUiElements();
         
         AllFilesListBox.ItemsSource = _allFiles;
         SelectedFilesListBox.ItemsSource = _selectedFiles;
         AllFilesListBox.SelectedItems = _selectedFiles;
         
         _ = Initialize(); // Start the initialization process asynchronously
+    }
+    
+    private void InitConditionalUiElements()
+    {
+        // Show/hide the selected files list based on app settings
+        if (Program.AppSettings.ShowSelectedFilesList) return;
+        SelectedFilesBorder.IsVisible = false;
+        FilesGrid.ColumnDefinitions = new ColumnDefinitions("*, Auto");
     }
 
     private async Task Initialize()

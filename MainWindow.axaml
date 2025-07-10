@@ -9,7 +9,7 @@
         Icon="avares://SelectSight/Assets/icon.ico">
 
     <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
-        <Grid Grid.Row="0" ColumnDefinitions="8*,1*">
+        <Grid x:Name="FilesGrid" Grid.Row="0" ColumnDefinitions="8*,1*">
             <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="0,0,1,0" Background="Transparent">
                 <Grid RowDefinitions="Auto,*">
                     <ListBox Grid.Row="1" 
@@ -37,7 +37,8 @@
                                             VerticalAlignment="Stretch"
                                             Background="Transparent">
                                     <Image Source="{Binding Thumbnail}"
-                                           Width="300" Height="300"
+                                           Width="{Binding Source={x:Static selectSight:Program.AppSettings}, Path=ThumbnailSize}" 
+                                           Height="{Binding Source={x:Static selectSight:Program.AppSettings}, Path=ThumbnailSize}"
                                            Stretch="Uniform"
                                            ClipToBounds="True"
                                            VerticalAlignment="Center"
@@ -47,7 +48,7 @@
                                                TextAlignment="Center"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxWidth="300"
+                                               MaxWidth="{Binding Source={x:Static selectSight:Program.AppSettings}, Path=ThumbnailSize}"
                                                ToolTip.Tip="{Binding Name}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -57,7 +58,7 @@
                 </Grid>
             </Border>
             
-            <Border Grid.Column="1" Background="Transparent">
+            <Border Grid.Column="1" Background="Transparent" x:Name="SelectedFilesBorder">
                 <ListBox x:Name="SelectedFilesListBox" Background="Transparent">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="selectSight:FileItem">

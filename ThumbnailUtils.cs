@@ -11,15 +11,17 @@ namespace SelectSight;
 
 public static class ThumbnailUtils
 {
-    private const int TargetThumbnailSize = 300; // Define target size once
-    
     public static async Task<Bitmap?> GenerateBitmap(Stream fileStream)
     {
+        var thumbnailSize = Program.AppSettings.ThumbnailSize;
+        // First check app settings to see if we should read EXIF data
+        if (!Program.AppSettings.ReadExif) return Bitmap.DecodeToWidth(fileStream, thumbnailSize);
+        
         var skEncodedOrigin = GetSkiaEncodedOrigin(fileStream);
         fileStream.Position = 0; // Reset stream position to the beginning for decoding
         
         // If no adjustment is needed, decode directly to the target size
-        if (skEncodedOrigin == SKEncodedOrigin.Default) return Bitmap.DecodeToWidth(fileStream, TargetThumbnailSize);
+        if (skEncodedOrigin == SKEncodedOrigin.Default) return Bitmap.DecodeToWidth(fileStream, thumbnailSize);
 
         // Needs adjustment for orientation
         using var originalDecodedBitmap = SKBitmap.Decode(fileStream);
@@ -47,7 +49,7 @@ public static class ThumbnailUtils
         
         // 3. Resize the finalSkBitmap (which is now correctly oriented)
         // Calculate target dimensions maintaining aspect ratio
-        var scale = Math.Min((float)TargetThumbnailSize / orientedBitmap.Width, (float)TargetThumbnailSize / orientedBitmap.Height);
+        var scale = Math.Min((float)thumbnailSize / orientedBitmap.Width, (float)thumbnailSize / orientedBitmap.Height);
         var finalScaledWidth = (int)(orientedBitmap.Width * scale);
         var finalScaledHeight = (int)(orientedBitmap.Height * scale);
         
