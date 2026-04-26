@@ -203,7 +203,7 @@ public partial class MainWindow : Window
 
     private async void OnAllFilesListBoxPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_pressedListBoxItem == null || !ReferenceEquals(e.Pointer.Captured, _pressedListBoxItem)) return;
+        if (_pressedListBoxItem is null || !ReferenceEquals(e.Pointer.Captured, _pressedListBoxItem)) return;
         
         // Calculate the distance moved
         var currentPosition = e.GetPosition(this);
@@ -223,18 +223,20 @@ public partial class MainWindow : Window
             if (!_selectedFiles.Contains(clickedFileItem)) _selectedFiles.Add(clickedFileItem); // Ensure the clicked file is selected
             
             var filePaths = _selectedFiles.Select(f => f.FullPath).ToList();
-            if (filePaths.Count != 0)
+            if (filePaths.Count > 0 && _pendingPointerPressedEventArgs is not null)
             {
                 var data = await CreateFilesDataObject(filePaths);
-                await DragDrop.DoDragDrop(e, data, DragDropEffects.Copy | DragDropEffects.Link);
+                await DragDrop.DoDragDropAsync(_pendingPointerPressedEventArgs, data, DragDropEffects.Copy | DragDropEffects.Link);
             }
         }
         
         // Reset state after drag/drop finishes
         _isDragging = false;
         _pressedListBoxItem = null;
+        _pendingPointerPressedEventArgs = null;
     }
 
+    private PointerPressedEventArgs? _pendingPointerPressedEventArgs;
     private void OnAllFilesListBoxClick(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
@@ -244,6 +246,7 @@ public partial class MainWindow : Window
         e.Pointer.Capture(_pressedListBoxItem);
         _isDragging = false;
         e.Handled = true;
+        _pendingPointerPressedEventArgs = e;
     }
 
     #endregion
@@ -267,7 +270,7 @@ public partial class MainWindow : Window
             var filePaths = _selectedFiles.Select(f => f.FullPath);
             var dataObject = await CreateFilesDataObject(filePaths);
   
-            await topLevel.Clipboard.SetDataObjectAsync(dataObject);
+            await topLevel.Clipboard.SetDataAsync(dataObject);
             ShowFeedback($"{_selectedFiles.Count} {(_selectedFiles.Count == 1 ? "file was" : "files were")} copied to the clipboard", 3);
         }
         catch (Exception ex)
@@ -307,25 +310,26 @@ public partial class MainWindow : Window
 
     #endregion
     
-    private async Task<DataObject> CreateFilesDataObject(IEnumerable<string> filePaths)
+    private async Task<DataTransfer> CreateFilesDataObject(IEnumerable<string> filePaths)
     {
-        var data = new DataObject();
-        
+        var data = new DataTransfer();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var topLevel = GetTopLevel(this);
-            if (topLevel == null) return data;
-            var storageFiles = new List<IStorageFile>();
+            if (topLevel is null) return data;
             foreach (var filePath in filePaths)
             {
                 var storageFile = await topLevel.StorageProvider.TryGetFileFromPathAsync(filePath);
-                if (storageFile is not null) storageFiles.Add(storageFile);
+                if (storageFile is null) continue;
+                data.Add(DataTransferItem.CreateFile(storageFile));
             }
-            data.Set(DataFormats.Files, storageFiles);
+            return data;
         }
-        else
-            data.Set("text/uri-list", string.Join(Environment.NewLine, filePaths.Select(f => new Uri(f).AbsoluteUri)));
-
+        
+        // Linux
+        var uriList = string.Join(Environment.NewLine, filePaths.Select(f => new Uri(f).AbsoluteUri));
+        var uriListFormat = DataFormat.CreateStringPlatformFormat("text/uri-list");
+        data.Add(DataTransferItem.Create(uriListFormat, uriList));
         return data;
     }
 }
