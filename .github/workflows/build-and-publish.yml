@@ -2,8 +2,6 @@ name: Build and Publish Cross-Platform
 
 on:
   push:
-    branches:
-      - main
   workflow_dispatch: {} # Allows manual triggering of the workflow
 
 permissions:
@@ -33,7 +31,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore Dependencies
         run: dotnet restore
@@ -43,6 +41,10 @@ jobs:
         shell: bash
         run: |
           VERSION_NUMBER="${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ github.run_number }}"
+          # Check if the current branch is NOT 'main'
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            VERSION_NUMBER="${VERSION_NUMBER}-dev" # All other branches than main get -dev suffix
+          fi
           echo "Generated version: $VERSION_NUMBER"
           echo "generated_version=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
 
