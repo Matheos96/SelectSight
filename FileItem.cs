@@ -1,8 +1,3 @@
-using System.Linq;
-using MetadataExtractor;
-using MetadataExtractor.Formats.Exif;
-using SkiaSharp;
-
 namespace SelectSight;
 
 using System;
@@ -13,10 +8,11 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 
-public class FileItem(string fullPath) : INotifyPropertyChanged
+public class FileItem(FileInfo fileInfo) : INotifyPropertyChanged
 {
-    public string FullPath { get; } = fullPath;
-    public string Name { get; } = Path.GetFileName(fullPath);
+    public string FullPath { get; } = fileInfo.FullName;
+    public string Name { get; } = fileInfo.Name;
+    public DateTime ModifiedDate { get; } = fileInfo.LastWriteTime;
 
     private Bitmap? _thumbnail;
     public Bitmap? Thumbnail
@@ -27,6 +23,7 @@ public class FileItem(string fullPath) : INotifyPropertyChanged
 
     public async Task LoadThumbnailAsync()
     {
+        if (Thumbnail is not null) return;
         try
         {
             var extension = Path.GetExtension(FullPath).ToLowerInvariant();

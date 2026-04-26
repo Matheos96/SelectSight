@@ -23,6 +23,8 @@ using MsBox.Avalonia.Enums;
 
 public partial class MainWindow : Window
 {
+    private enum Sorting { DateOldestFirst, DateNewestFirst, NameAscending, NameDescending };
+    
     private readonly ObservableCollection<FileItem> _allFiles = [];
     private readonly ObservableCollection<FileItem> _selectedFiles = [];
     
@@ -30,6 +32,21 @@ public partial class MainWindow : Window
     private bool _isDragging;
     private const double DragThreshold = 5.0;
     private ListBoxItem? _pressedListBoxItem;
+    
+    private Sorting _sortBy =  Sorting.DateOldestFirst;
+    private IStorageFolder? _currentFolder;
+
+    private readonly Lazy<string> _selectedFilesFileLazy = new(() =>
+    {
+        const string selectSightTempFolder = "SelectSightData";
+        const string selectSightSelectedFilesFile = "SelectedFiles.ss";
+
+        var selectSightTemp = Path.Combine(Path.GetTempPath(), selectSightTempFolder);
+        if (!Directory.Exists(selectSightTemp)) Directory.CreateDirectory(selectSightTemp);
+        return Path.Combine(selectSightTemp, selectSightSelectedFilesFile);
+    });
+
+    private string SelectedFilesFile => _selectedFilesFileLazy.Value;
     
     public MainWindow()
     {
@@ -66,6 +83,9 @@ public partial class MainWindow : Window
             return;
         }
         
+        // Setup sort by listener before choosing folder so it can be changed before first load
+        SetupSortByListener();
+        
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Select a folder",
@@ -78,55 +98,12 @@ public partial class MainWindow : Window
         {
             if (folders.Count > 0)
             {
-                var directoryPath = folders[0].Path.LocalPath;
-                if (!Directory.Exists(directoryPath))
-                {
-                    Console.WriteLine($"Directory not found: {directoryPath}");
-                    return;
-                }
-                
-                const string selectSightTempFolder = "SelectSightData";
-                const string selectSightSelectedFilesFile = "SelectedFiles.ss";
-                
-                var selectSightTemp = Path.Combine(Path.GetTempPath(), selectSightTempFolder);
-                if (!Directory.Exists(selectSightTemp)) Directory.CreateDirectory(selectSightTemp);
-                var selectedFilesFile = Path.Combine(selectSightTemp, selectSightSelectedFilesFile);
-            
-                var oldSelections = File.Exists(selectedFilesFile)
-                    ? (await File.ReadAllLinesAsync(selectedFilesFile)).ToHashSet()
-                    : [];
-            
+                // Setup Listbox collection listeners
                 _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
                 _allFiles.CollectionChanged += AllFilesOnCollectionChanged;
                 
-                var directoryInfo = new DirectoryInfo(directoryPath);
-                var files = directoryInfo.GetFiles().OrderBy(p => p.CreationTime).ToArray();
-                var totalFiles = files.Length;
-                var currentFileIndex = 0;
-                foreach (var fileInfo in files)
-                {
-                    var filePath = fileInfo.FullName;
-                    var fileItem = new FileItem(filePath);
-                    _allFiles.Add(fileItem);
-                    
-                    // If the file was previously selected, add it to the selected files
-                    // (Queue on UI Thread to avoid issues with collection modification due to modification above that also affects AllFilesListBox)
-                    if (oldSelections.Contains(filePath)) Dispatcher.UIThread.Post(() => _selectedFiles.Add(fileItem)); 
-                    
-                    await fileItem.LoadThumbnailAsync();
-                    currentFileIndex++;
-                    ShowFeedback($"Loading files and creating thumbnails {currentFileIndex/(float)totalFiles:P} ({currentFileIndex}/{totalFiles})", -1, false);
-                }
-                ShowFeedback("Files loaded successfully", 4, false);
+                await LoadFiles(folders[0]);
                 return;
-                
-                void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-                {
-                    File.WriteAllLines(selectedFilesFile, _selectedFiles.Select(f => f.FullPath));
-                    RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
-                    RefreshFilesInfoText();
-                }
-                void AllFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilesInfoText();
             }
             
             Dispatcher.UIThread.Post(() =>
@@ -134,7 +111,122 @@ public partial class MainWindow : Window
                 if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                     desktop.Shutdown();
             });
+            
+            return;
+        
+            void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+            {
+                File.WriteAllLines(SelectedFilesFile, _selectedFiles.Select(f => f.FullPath));
+                RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
+                RefreshFilesInfoText();
+            }
+            void AllFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilesInfoText();
         });
+    }
+
+    private Task ReloadFiles() => LoadFiles(_currentFolder);
+    
+    private async Task LoadFiles(IStorageFolder? folder)
+    {
+        if (folder is null)
+        {
+            Console.WriteLine("No folder selected.");
+            return;
+        }
+        var directoryPath = folder.Path.LocalPath;
+        if (!Directory.Exists(directoryPath))
+        {
+            Console.WriteLine($"Directory not found: {directoryPath}");
+            return;
+        }
+        
+        _currentFolder = folder;
+    
+        var oldSelections = File.Exists(SelectedFilesFile)
+            ? (await File.ReadAllLinesAsync(SelectedFilesFile)).ToHashSet()
+            : [];
+        
+        var directoryInfo = new DirectoryInfo(directoryPath);
+        IEnumerable<FileInfo> files = directoryInfo.GetFiles();
+        switch (_sortBy)
+        {
+            
+            case Sorting.DateNewestFirst:
+                files = files.OrderByDescending(f => f.LastWriteTime);
+                break;
+            case Sorting.NameAscending:
+                files = files.OrderBy(f => f.Name);
+                break;
+            case Sorting.NameDescending:
+                files = files.OrderByDescending(f => f.Name);
+                break;
+            case Sorting.DateOldestFirst:
+            default:
+                files = files.OrderBy(f => f.LastWriteTime);
+                break;
+        }
+        var sortedFilesArray = files.ToArray();
+        var totalFiles = sortedFilesArray.Length;
+        var currentFileIndex = 0;
+        var existingFileItems = _allFiles.ToDictionary(f => f.Name); // Lookup to reuse existing FileItems in new order
+        _allFiles.Clear();
+        Dispatcher.UIThread.Post(() => SortByComboBox.IsEnabled = false); // For now we don't support changing sorting during load
+        foreach (var fileInfo in sortedFilesArray)
+        {
+            var fileItem = existingFileItems.TryGetValue(fileInfo.Name, out var found) ? found : new FileItem(fileInfo);
+            _allFiles.Add(fileItem);
+            
+            // If the file was previously selected, add it to the selected files
+            // (Queue on UI Thread to avoid issues with collection modification due to modification above that also affects AllFilesListBox)
+            if (oldSelections.Contains(fileInfo.FullName)) Dispatcher.UIThread.Post(() => _selectedFiles.Add(fileItem)); 
+            
+            await fileItem.LoadThumbnailAsync();
+            currentFileIndex++;
+            ShowFeedback($"Loading files and creating thumbnails {currentFileIndex/(float)totalFiles:P1} ({currentFileIndex}/{totalFiles})", -1, false);
+        }
+        Dispatcher.UIThread.Post(() => SortByComboBox.IsEnabled = true); // Re enable sorting
+        ShowFeedback("Files loaded successfully", 4, false);
+    }
+
+    private void SetupSortByListener()
+    {
+        SortByComboBox.SelectionChanged += (sender, _) =>
+        {
+            if (sender is not ComboBox { SelectedItem: ComboBoxItem selectedItem } || selectedItem.Tag?.ToString() is not { } sortMode) return;
+            var newSortBy = sortMode switch
+            {
+                "DateOldestFirst" => Sorting.DateOldestFirst,
+                "DateNewestFirst" => Sorting.DateNewestFirst,
+                "NameAsc" => Sorting.NameAscending,
+                "NameDesc" => Sorting.NameDescending,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            if (newSortBy == _sortBy) return;
+            
+            // Sort the current files according to new order
+            _sortBy = newSortBy;
+            var orderedFiles = _allFiles.AsEnumerable();
+            switch (_sortBy)
+            {
+            
+                case Sorting.DateNewestFirst:
+                    orderedFiles = orderedFiles.OrderByDescending(f => f.ModifiedDate);
+                    break;
+                case Sorting.NameAscending:
+                    orderedFiles = orderedFiles.OrderBy(f => f.Name);
+                    break;
+                case Sorting.NameDescending:
+                    orderedFiles = orderedFiles.OrderByDescending(f => f.Name);
+                    break;
+                case Sorting.DateOldestFirst:
+                default:
+                    orderedFiles = orderedFiles.OrderBy(f => f.ModifiedDate);
+                    break;
+            }
+            var orderedFilesArray = orderedFiles.ToArray();
+            _allFiles.Clear();
+            foreach (var fileItem in orderedFilesArray) _allFiles.Add(fileItem);
+        };
     }
     
     private void SetupDragAndDrop()

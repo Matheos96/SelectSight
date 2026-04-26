@@ -8,8 +8,20 @@
         Title="SelectSight"
         Icon="avares://SelectSight/Assets/icon.ico">
 
-    <Grid RowDefinitions="*,Auto" Background="WhiteSmoke">
-        <Grid x:Name="FilesGrid" Grid.Row="0" ColumnDefinitions="8*,1*">
+    <Grid RowDefinitions="Auto,*,Auto" Background="WhiteSmoke">
+        <Border Grid.Row="0" BorderBrush="LightGray" BorderThickness="0,0,0,1" 
+                Background="Transparent" Padding="10">
+            <Grid ColumnDefinitions="Auto,*" HorizontalAlignment="Stretch">
+                <TextBlock Grid.Column="0" Text="Sort by:" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="2, 0,5, 0" />
+                <ComboBox Grid.Column="1" SelectedIndex="0" PlaceholderText="Select an item..." Width="250" Name="SortByComboBox">
+                    <ComboBoxItem Tag="DateOldestFirst">Date Modified (oldest first)</ComboBoxItem>
+                    <ComboBoxItem Tag="DateNewestFirst">Date Modified (newest first)</ComboBoxItem>
+                    <ComboBoxItem Tag="NameAsc">Name (A-Z)</ComboBoxItem>
+                    <ComboBoxItem Tag="NameDesc">Name (Z-A)</ComboBoxItem>
+                </ComboBox>
+            </Grid>
+        </Border>
+        <Grid x:Name="FilesGrid" Grid.Row="1" ColumnDefinitions="8*,1*">
             <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="0,0,1,0" Background="Transparent">
                 <Grid RowDefinitions="Auto,*">
                     <ListBox Grid.Row="1" 
@@ -71,7 +83,7 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="0,1,0,0" 
+        <Border Grid.Row="2" BorderBrush="LightGray" BorderThickness="0,1,0,0" 
                 Background="Transparent" Padding="10">
             <Grid ColumnDefinitions="*,*">
                 <Grid Grid.Column="0" ColumnDefinitions="Auto,*" HorizontalAlignment="Stretch">
