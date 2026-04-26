@@ -124,6 +124,7 @@ public partial class MainWindow : Window
                 {
                     File.WriteAllLines(selectedFilesFile, _selectedFiles.Select(f => f.FullPath));
                     RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
+                    RefreshFilesInfoText();
                 }
                 void AllFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilesInfoText();
             }
@@ -303,6 +304,7 @@ public partial class MainWindow : Window
         if (await box.ShowAsync() != ButtonResult.Yes) return;
         
         _selectedFiles.Clear();
+        RefreshFilesInfoText();
         ShowFeedback("Cleared all selected files", 3);
     }
 
