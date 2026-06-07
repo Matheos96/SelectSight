@@ -37,7 +37,7 @@ public partial class MainWindow : Window
     private IStorageFolder? _currentFolder;
 
     private string? _selectSightDataFile;
-    private string SelectedFilesFile 
+    private string SelectSightDataFile 
         => _selectSightDataFile ?? throw new InvalidOperationException("No folder is currently open.");
 
     
@@ -112,7 +112,7 @@ public partial class MainWindow : Window
         
             void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
             {
-                File.WriteAllLines(SelectedFilesFile, _selectedFiles.Select(f => f.FullPath));
+                File.WriteAllLines(SelectSightDataFile, _selectedFiles.Select(f => f.FullPath));
                 RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
                 RefreshFilesInfoText();
             }
@@ -138,10 +138,20 @@ public partial class MainWindow : Window
         
         _currentFolder = folder;
         SetDataFilePath(folder);
-    
-        var oldSelections = File.Exists(SelectedFilesFile)
-            ? (await File.ReadAllLinesAsync(SelectedFilesFile)).ToHashSet()
-            : [];
+        CleanupBackups(); // relies on SetDataFileFolder being called (to get the data folder path)
+
+        HashSet<string> oldSelections = [];
+        if (File.Exists(SelectSightDataFile))
+        {
+            // Make a backup of previous data file
+            var fileInfo = new FileInfo(SelectSightDataFile);
+            var backupFileName = $"{SelectSightDataFile[..^3]}_{fileInfo.CreationTime:ddMMyyyy_HHmmss}.ss.bak";
+            // If such a file already exists, assume it is correct (even matching seconds!)
+            if (!File.Exists(backupFileName)) File.Copy(SelectSightDataFile, backupFileName);
+            
+            // Set initial selections based on data file
+            oldSelections = (await File.ReadAllLinesAsync(SelectSightDataFile)).ToHashSet();
+        }
         
         var directoryInfo = new DirectoryInfo(directoryPath);
         IEnumerable<FileInfo> files = directoryInfo.GetFiles();
@@ -400,6 +410,31 @@ public partial class MainWindow : Window
     #endregion
 
     #endregion
+
+    // Clean up all backup files older than 14 days
+    private void CleanupBackups()
+    {
+        if (Path.GetDirectoryName(SelectSightDataFile) is not { } dataDirPath
+            || new DirectoryInfo(dataDirPath) is not { Exists: true } directoryInfo)
+            return;
+
+        var cutOffTime = DateTime.UtcNow.Subtract(TimeSpan.FromDays(14));
+        var bakFilesToDelete = directoryInfo
+            .GetFiles("*.ss.bak", SearchOption.TopDirectoryOnly)
+            .Where(f => f.LastWriteTimeUtc <= cutOffTime).ToArray();
+
+        foreach (var bakFile in bakFilesToDelete)
+        {
+            try
+            {
+                bakFile.Delete();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Could not delete backup {bakFile.Name}: {ex.Message}");
+            }
+        }
+    }
 
     private void SetDataFilePath(IStorageFolder openFolder)
     {
