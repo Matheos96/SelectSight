@@ -91,11 +91,14 @@ public partial class MainWindow : Window
         {
             if (folders.Count > 0)
             {
+                // Load files first, to not fire event handler for each programmatic selection (if any)
+                await LoadFiles(folders[0]); 
+                RefreshFilesInfoText();
+                RefreshUiButtonStates();
+                
                 // Setup Listbox collection listeners
                 _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
                 _allFiles.CollectionChanged += AllFilesOnCollectionChanged;
-                
-                await LoadFiles(folders[0]);
                 return;
             }
             
@@ -109,7 +112,6 @@ public partial class MainWindow : Window
         
             void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
             {
-                
                 File.WriteAllLines(SelectedFilesFile, _selectedFiles.Select(f => f.FullPath));
                 RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
                 RefreshFilesInfoText();
