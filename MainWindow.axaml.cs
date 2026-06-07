@@ -36,17 +36,10 @@ public partial class MainWindow : Window
     private Sorting _sortBy =  Sorting.DateOldestFirst;
     private IStorageFolder? _currentFolder;
 
-    private readonly Lazy<string> _selectedFilesFileLazy = new(() =>
-    {
-        const string selectSightTempFolder = "SelectSightData";
-        const string selectSightSelectedFilesFile = "SelectedFiles.ss";
+    private string? _selectSightDataFile;
+    private string SelectedFilesFile 
+        => _selectSightDataFile ?? throw new InvalidOperationException("No folder is currently open.");
 
-        var selectSightTemp = Path.Combine(Path.GetTempPath(), selectSightTempFolder);
-        if (!Directory.Exists(selectSightTemp)) Directory.CreateDirectory(selectSightTemp);
-        return Path.Combine(selectSightTemp, selectSightSelectedFilesFile);
-    });
-
-    private string SelectedFilesFile => _selectedFilesFileLazy.Value;
     
     public MainWindow()
     {
@@ -116,6 +109,7 @@ public partial class MainWindow : Window
         
             void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
             {
+                
                 File.WriteAllLines(SelectedFilesFile, _selectedFiles.Select(f => f.FullPath));
                 RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
                 RefreshFilesInfoText();
@@ -141,6 +135,7 @@ public partial class MainWindow : Window
         }
         
         _currentFolder = folder;
+        SetDataFilePath(folder);
     
         var oldSelections = File.Exists(SelectedFilesFile)
             ? (await File.ReadAllLinesAsync(SelectedFilesFile)).ToHashSet()
@@ -403,6 +398,30 @@ public partial class MainWindow : Window
     #endregion
 
     #endregion
+
+    private void SetDataFilePath(IStorageFolder openFolder)
+    {
+        const string selectSightFolderName = "SelectSight";
+        const string dataFolderName = "Data";
+        var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var selectSightDataFolder = Path.Combine(documentsFolder, selectSightFolderName, dataFolderName);
+        if (!Directory.Exists(selectSightDataFolder)) Directory.CreateDirectory(selectSightDataFolder);
+        if (openFolder is null) throw new InvalidOperationException();
+        var localPath = openFolder.Path.LocalPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        localPath = OperatingSystem.IsWindows() ? localPath.ToLowerInvariant() : localPath;
+        var invalidChars = Path.GetInvalidPathChars().ToHashSet();
+        var fileNameBuilder = new StringBuilder();
+        foreach (var ch in localPath)
+        {
+            if (invalidChars.Contains(ch) || ch == Path.DirectorySeparatorChar ||
+                ch == Path.AltDirectorySeparatorChar || ch == Path.VolumeSeparatorChar)
+                fileNameBuilder.Append('_');
+            else fileNameBuilder.Append(ch);
+        }
+        var fileName = fileNameBuilder.ToString();
+        if (fileName.Length > 237) fileName = fileName[..237];
+        _selectSightDataFile = Path.Combine(selectSightDataFolder, $"{fileName}.ss");
+    }
     
     private async Task<DataTransfer> CreateFilesDataObject(IEnumerable<string> filePaths)
     {
