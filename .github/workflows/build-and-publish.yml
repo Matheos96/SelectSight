@@ -2,8 +2,6 @@ name: Build and Publish Cross-Platform
 
 on:
   push:
-    branches:
-      - main
   workflow_dispatch: {} # Allows manual triggering of the workflow
 
 permissions:
@@ -28,12 +26,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5.2.0
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore Dependencies
         run: dotnet restore
@@ -43,6 +41,10 @@ jobs:
         shell: bash
         run: |
           VERSION_NUMBER="${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ github.run_number }}"
+          # Check if the current branch is NOT 'main'
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            VERSION_NUMBER="${VERSION_NUMBER}-dev" # All other branches than main get -dev suffix
+          fi
           echo "Generated version: $VERSION_NUMBER"
           echo "generated_version=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
 
@@ -67,7 +69,7 @@ jobs:
           echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_ENV"
 
       - name: Upload Archived Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ env.archive_name }}
           path: ./${{ env.archive_name }}
@@ -82,15 +84,15 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8.0.1
         with:
           path: ./release_assets
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2 # Action to create a GitHub Release
+        uses: softprops/action-gh-release@v3.0.0 # Action to create a GitHub Release
         with:
           tag_name: v${{ needs.build.outputs.app_version }}
           name: Release v${{ needs.build.outputs.app_version }}
