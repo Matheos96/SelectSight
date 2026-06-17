@@ -28,6 +28,10 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<FileItem> _allFiles = [];
     private readonly ObservableCollection<FileItem> _selectedFiles = [];
     
+    // Full paths to selected files - Needed as this is populated from previous session at startup, before all files have been read in.
+    // acts as the source of truth for what to write to file for backup.
+    private HashSet<string> _selectedFilesPaths = []; // Consider making this a ConcurrentDictionary...
+    
     private Point _dragStartPosition;
     private bool _isDragging;
     private const double DragThreshold = 5.0;
@@ -91,14 +95,10 @@ public partial class MainWindow : Window
         {
             if (folders.Count > 0)
             {
-                // Load files first, to not fire event handler for each programmatic selection (if any)
-                await LoadFiles(folders[0]); 
-                RefreshFilesInfoText();
-                RefreshUiButtonStates();
-                
                 // Setup Listbox collection listeners
                 _selectedFiles.CollectionChanged += SelectedFilesOnCollectionChanged;
                 _allFiles.CollectionChanged += AllFilesOnCollectionChanged;
+                await LoadFiles(folders[0]); 
                 return;
             }
             
@@ -112,7 +112,6 @@ public partial class MainWindow : Window
         
             void SelectedFilesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
             {
-                File.WriteAllLines(SelectSightDataFile, _selectedFiles.Select(f => f.FullPath));
                 RefreshUiButtonStates(); // Ensure the UI reflects the current state of selected files
                 RefreshFilesInfoText();
             }
@@ -140,7 +139,6 @@ public partial class MainWindow : Window
         SetDataFilePath(folder);
         CleanupBackups(); // relies on SetDataFileFolder being called (to get the data folder path)
 
-        HashSet<string> oldSelections = [];
         if (File.Exists(SelectSightDataFile))
         {
             // Make a backup of previous data file
@@ -150,7 +148,7 @@ public partial class MainWindow : Window
             if (!File.Exists(backupFileName)) File.Copy(SelectSightDataFile, backupFileName);
             
             // Set initial selections based on data file
-            oldSelections = (await File.ReadAllLinesAsync(SelectSightDataFile)).ToHashSet();
+            _selectedFilesPaths = (await File.ReadAllLinesAsync(SelectSightDataFile)).ToHashSet();
         }
         
         var directoryInfo = new DirectoryInfo(directoryPath);
@@ -185,7 +183,7 @@ public partial class MainWindow : Window
             
             // If the file was previously selected, add it to the selected files
             // (Queue on UI Thread to avoid issues with collection modification due to modification above that also affects AllFilesListBox)
-            if (oldSelections.Contains(fileInfo.FullName)) Dispatcher.UIThread.Post(() => _selectedFiles.Add(fileItem)); 
+            if (_selectedFilesPaths.Contains(fileInfo.FullName)) Dispatcher.UIThread.Post(() => _selectedFiles.Add(fileItem)); 
             
             await fileItem.LoadThumbnailAsync();
             currentFileIndex++;
@@ -247,7 +245,16 @@ public partial class MainWindow : Window
 
     private void ToggleFileSelection(FileItem fileItem)
     {
-        if (!_selectedFiles.Remove(fileItem)) _selectedFiles.Add(fileItem);
+        if (_selectedFiles.Remove(fileItem))
+            _selectedFilesPaths.Remove(fileItem.FullPath);
+        else
+        {
+            _selectedFilesPaths.Add(fileItem.FullPath);
+            _selectedFiles.Add(fileItem);
+        }
+        
+        // Update data file with new set of selections
+        File.WriteAllLines(SelectSightDataFile, _selectedFilesPaths);
     }
     
     private void ShowFeedback(string message, long durationSeconds = -1, bool resetTextAfterTimeout = true) => Task.Run(async () =>
@@ -320,7 +327,12 @@ public partial class MainWindow : Window
         
         if (_pressedListBoxItem.DataContext is FileItem clickedFileItem)
         {
-            if (!_selectedFiles.Contains(clickedFileItem)) _selectedFiles.Add(clickedFileItem); // Ensure the clicked file is selected
+            if (!_selectedFiles.Contains(clickedFileItem))
+            {
+                // Ensure the clicked file is selected
+                _selectedFiles.Add(clickedFileItem);
+                _selectedFilesPaths.Add(clickedFileItem.FullPath);
+            }
             
             var filePaths = _selectedFiles.Select(f => f.FullPath).ToList();
             if (filePaths.Count > 0 && _pendingPointerPressedEventArgs is not null)
@@ -389,8 +401,12 @@ public partial class MainWindow : Window
 
             if (await box.ShowAsync() != ButtonResult.Yes) return;
         }
-        
-        foreach (var fileItem in _allFiles) _selectedFiles.Add(fileItem);
+
+        foreach (var fileItem in _allFiles)
+        {
+            _selectedFiles.Add(fileItem);
+            _selectedFilesPaths.Add(fileItem.FullPath);
+        }
     }
     
     private async void ClearSelectedBtnClick(object? sender, RoutedEventArgs e)
@@ -403,6 +419,8 @@ public partial class MainWindow : Window
         if (await box.ShowAsync() != ButtonResult.Yes) return;
         
         _selectedFiles.Clear();
+        _selectedFilesPaths.Clear();
+        await File.WriteAllLinesAsync(SelectSightDataFile, []);
         RefreshFilesInfoText();
         ShowFeedback("Cleared all selected files", 3);
     }
