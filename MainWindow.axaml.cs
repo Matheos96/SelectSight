@@ -229,8 +229,10 @@ public partial class MainWindow : Window
                     break;
             }
             var orderedFilesArray = orderedFiles.ToArray();
+            var selectedFiles = _selectedFiles.ToArray(); // Keep selected files as it is cleared as a consequence of clearing all files
             _allFiles.Clear();
             foreach (var fileItem in orderedFilesArray) _allFiles.Add(fileItem);
+            foreach (var fileItem in selectedFiles) _selectedFiles.Add(fileItem); // restore selections
         };
     }
     
